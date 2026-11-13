@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AuditPulse — Automated Web Security, SEO & Performance Auditor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased">
+  <div class="max-w-4xl mx-auto px-6 py-14">
+    <div class="flex items-center justify-between border-b border-slate-800 pb-6 mb-10">
+      <div>
+        <span class="text-xs font-bold uppercase tracking-widest text-indigo-400">CodeCraft Studios</span>
+        <h1 class="text-3xl font-extrabold tracking-tight text-white mt-1">AuditPulse</h1>
+        <p class="text-sm text-slate-400 mt-1">Instant Security Headers, SEO &amp; Performance Diagnostics for Indie SaaS.</p>
+      </div>
+      <a href="https://github.com/TrioA/auditpulse" target="_blank" class="rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800">GitHub</a>
+    </div>
+
+    <form id="auditForm" class="flex flex-col sm:flex-row gap-3 mb-10">
+      <input id="urlInput" type="text" placeholder="https://your-saas-app.com" required
+        class="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none" />
+      <button type="submit" id="submitBtn"
+        class="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white hover:bg-indigo-500 transition-colors">
+        Run Live Audit
+      </button>
+    </form>
+
+    <div id="statusMsg" class="hidden text-sm text-slate-400 mb-6"></div>
+    <div id="results" class="hidden space-y-6">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+          <div class="text-xs text-slate-400">Overall Score</div>
+          <div id="scoreOverall" class="text-3xl font-extrabold text-indigo-400 mt-1">-</div>
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+          <div class="text-xs text-slate-400">Security</div>
+          <div id="scoreSecurity" class="text-3xl font-extrabold text-emerald-400 mt-1">-</div>
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+          <div class="text-xs text-slate-400">SEO</div>
+          <div id="scoreSeo" class="text-3xl font-extrabold text-amber-400 mt-1">-</div>
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+          <div class="text-xs text-slate-400">TTFB</div>
+          <div id="metricTtfb" class="text-3xl font-extrabold text-sky-400 mt-1">-</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+          <h2 class="font-bold text-white mb-4">Security Headers</h2>
+          <ul id="secList" class="space-y-2 text-sm"></ul>
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+          <h2 class="font-bold text-white mb-4">SEO &amp; Metadata</h2>
+          <ul id="seoList" class="space-y-2 text-sm"></ul>
+        </div>
+      </div>
+
+      <div class="rounded-2xl border border-indigo-500/30 bg-indigo-950/30 p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h3 class="font-bold text-white">Want us to fix every missing header &amp; SEO issue?</h3>
+          <p class="text-xs text-slate-300 mt-1">We deliver a drop-in PR with hardened security headers, CSP, and full OpenGraph/SEO remediation.</p>
+        </div>
+        <a href="https://github.com/TrioA/auditpulse" target="_blank" class="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-500 shrink-0">Request Full Remediation</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('auditForm');
+    const urlInput = document.getElementById('urlInput');
+    const statusMsg = document.getElementById('statusMsg');
+    const results = document.getElementById('results');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      results.classList.add('hidden');
+      statusMsg.textContent = 'Scanning target URL...';
+      statusMsg.classList.remove('hidden');
+      try {
+        const res = await fetch('/api/audit?url=' + encodeURIComponent(urlInput.value));
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Audit failed');
+        statusMsg.classList.add('hidden');
+        document.getElementById('scoreOverall').textContent = data.scores.overall + '/100';
+        document.getElementById('scoreSecurity').textContent = data.scores.security + '%';
+        document.getElementById('scoreSeo').textContent = data.scores.seo + '%';
+        document.getElementById('metricTtfb').textContent = data.ttfbMs + 'ms';
+
+        const renderList = (elId, items) => {
+          document.getElementById(elId).innerHTML = items.map(i =>
+            `<li class="flex items-center justify-between border-b border-slate-800/60 pb-1.5">
+              <span class="text-slate-300">${i.label}</span>
+              <span class="${i.present ? 'text-emerald-400' : 'text-rose-400'} font-semibold">${i.present ? 'PASS' : 'MISSING'}</span>
+            </li>`
+          ).join('');
+        };
+        renderList('secList', data.securityChecks);
+        renderList('seoList', data.seoChecks);
+        results.classList.remove('hidden');
+      } catch (err) {
+        statusMsg.textContent = 'Error: ' + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
